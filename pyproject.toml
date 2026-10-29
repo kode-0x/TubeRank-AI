@@ -1,0 +1,15 @@
+[project]
+name = "tuberank-ai"
+version = "0.1.0"
+description = "YouTube SEO Insights Generator using a provider-agnostic LLM client (OpenRouter or local AI)."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "streamlit==1.40.2",
+    "requests==2.32.3",
+    "beautifulsoup4==4.12.3",
+    "python-dotenv==1.0.1",
+]
+
+[tool.uv]
+package = false
