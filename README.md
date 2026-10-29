@@ -2,89 +2,65 @@
 
 # TubeRank AI
 
-### YouTube SEO Insights Generator on a GitOps Pipeline
+### YouTube SEO Insights Generator
 
-AI-driven YouTube SEO analysis, delivered through a push-to-deploy GitOps workflow built on Jenkins, Argo CD, and Kubernetes.
+Paste a YouTube URL, scrape its public metadata, and generate actionable SEO insights with a provider-agnostic LLM client. Runs against a local model (Ollama) or OpenRouter.
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
-![OpenAI GPT-4](https://img.shields.io/badge/OpenAI_GPT--4-412991?style=for-the-badge&logo=openai&logoColor=white)
+![BeautifulSoup](https://img.shields.io/badge/BeautifulSoup-4B8BBE?style=for-the-badge&logo=python&logoColor=white)
+![Ollama](https://img.shields.io/badge/Ollama-000000?style=for-the-badge&logo=ollama&logoColor=white)
+![OpenRouter](https://img.shields.io/badge/OpenRouter-6566F1?style=for-the-badge&logo=openai&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![Jenkins](https://img.shields.io/badge/Jenkins-D24939?style=for-the-badge&logo=jenkins&logoColor=white)
-![Argo CD](https://img.shields.io/badge/Argo_CD-EF7B4D?style=for-the-badge&logo=argo&logoColor=white)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
-![Minikube](https://img.shields.io/badge/Minikube-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
-![GCP](https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)
-![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)
+![uv](https://img.shields.io/badge/uv-DE5FE9?style=for-the-badge&logo=uv&logoColor=white)
 
 </div>
 
 ---
 
-> **Repository status:** This repository currently contains project documentation and the architecture
-> reference only. Application source, container, and Kubernetes manifests are not yet committed here.
-> Commands below marked _(expected)_ describe the standard workflow for this stack and should be
-> adjusted to match the source once it lands in the repo.
-
 ## Overview
 
-TubeRank AI analyzes a YouTube video and produces actionable SEO recommendations. The application
-scrapes public video metadata (title, creator, views, thumbnail) and sends it to the OpenAI GPT-4 API,
-which returns SEO insights including tag suggestions, timestamps, target audience, and content flaws.
+TubeRank AI is a Streamlit web app that analyzes a single YouTube video and returns structured SEO recommendations.
 
-The project is designed around a GitOps delivery model. Changes pushed to GitHub trigger a Jenkins
-pipeline that builds and tests the container image, and Argo CD continuously syncs the declared state
-from Git into a Kubernetes cluster. The cluster runs as Minikube on a Google Cloud (GCP) virtual machine.
+It scrapes the public watch page with `requests` and `BeautifulSoup` (parsing the embedded `ytInitialPlayerResponse` payload and OpenGraph tags), builds a prompt from the extracted metadata, and sends it to an OpenAI-compatible chat completions endpoint. The LLM client is provider-agnostic: point it at a local runtime such as Ollama, or at OpenRouter, through environment variables.
+
+The model returns a Markdown report with four fixed sections: SEO tags, suggested timestamps, target audience, and content flaws with improvements. The report can be downloaded directly from the UI.
 
 ## Features
 
-Verified from the architecture reference and project description:
-
-- **YouTube metadata scraping** - extracts title, creator, view count, and thumbnail from a target video.
-- **GPT-4 SEO insights** - generates SEO tags, timestamps, target-audience analysis, and content flaws.
-- **Web interface** - the analysis is exposed through a web application pod running in the cluster.
-- **CI with Jenkins** - build and test stage triggered by a GitHub webhook on push.
-- **GitOps CD with Argo CD** - Git is the source of truth; Argo CD syncs manifests into the cluster.
-- **Kubernetes deployment** - the app runs as a pod in a Minikube cluster hosted on a GCP VM.
+- Accepts standard watch URLs, `youtu.be` links, Shorts, embed, `/live/`, and bare 11-character video IDs.
+- Scrapes title, channel, view count, length, publish date, thumbnail, description, and existing keywords without the YouTube Data API.
+- Provider-agnostic LLM client supporting `local` (Ollama-compatible) and `openrouter` backends.
+- Generates a Markdown report: at least 35 SEO tags, suggested chapter timestamps, target audience, and content flaws with fixes.
+- Renders video metadata and thumbnail in the UI, with a one-click Markdown download of the insights.
+- Containerized with Docker, built with `uv`, and ships a Streamlit health check.
 
 ## Tech Stack
 
 | Layer | Technology |
 | --- | --- |
-| Application | Python, Streamlit |
-| AI | OpenAI GPT-4 API |
-| Data source | YouTube public metadata (web scraping) |
-| Containerization | Docker |
-| Continuous Integration | Jenkins |
-| Continuous Delivery | Argo CD (GitOps) |
-| Orchestration | Kubernetes (Minikube) |
-| Source Control | GitHub (with webhook to Jenkins) |
-| Infrastructure | Google Cloud Platform VM |
+| Language | Python >= 3.10 |
+| Web UI | Streamlit 1.40.2 |
+| Scraping | requests 2.32.3, beautifulsoup4 4.12.3 |
+| Config | python-dotenv 1.0.1 |
+| LLM backends | Local (Ollama-compatible), OpenRouter (OpenAI-compatible chat completions) |
+| Packaging | pyproject.toml, uv |
+| Container | Docker (python:3.12-slim) |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    subgraph DEV["Development & Source Control"]
-        GH["GitHub<br/>Code & Manifests"]
-    end
-
-    subgraph CICD["CI/CD Pipeline"]
-        JENKINS["Jenkins<br/>Build & Test"]
-        ARGO["Argo CD<br/>GitOps Deployment"]
-    end
-
-    subgraph CLOUD["GCP VM - Minikube Cluster"]
-        POD["Web Application Pod"]
-        SCRAPE["Web Scraping<br/>Title, Creator, Views, Thumbnail"]
-        GPT["GPT-4 API<br/>35 Tags, Timestamps, Audience, Flaws"]
-    end
-
-    GH -- "Webhook" --> JENKINS
-    JENKINS -- "Trigger Sync" --> ARGO
-    ARGO --> POD
-    POD --> SCRAPE
-    GPT -- "SEO Insights" --> POD
+    User["User"] -->|YouTube URL| APP["app.py<br/>Streamlit UI"]
+    APP --> SCRAPER["youtube_scraper.py<br/>fetch_metadata"]
+    SCRAPER -->|HTTP GET| YT["youtube.com<br/>watch page"]
+    YT -->|HTML| SCRAPER
+    SCRAPER -->|VideoMetadata| APP
+    APP --> CLIENT["llm_client.py<br/>LLMClient.chat"]
+    CLIENT -->|chat/completions| LLM["LLM endpoint<br/>local or OpenRouter"]
+    LLM -->|SEO insights| CLIENT
+    CLIENT --> APP
+    APP -->|Markdown report| User
 ```
 
 ## Request Workflow
@@ -92,106 +68,135 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     participant User
-    participant App as Web Application Pod
+    participant App as app.py
+    participant Scraper as youtube_scraper
     participant YT as YouTube
-    participant GPT as GPT-4 API
+    participant Client as llm_client
+    participant LLM as LLM endpoint
 
-    User->>App: Submit YouTube video URL
-    App->>YT: Scrape metadata
-    YT-->>App: Title, creator, views, thumbnail
-    App->>GPT: Request SEO analysis
-    GPT-->>App: Tags, timestamps, audience, flaws
-    App-->>User: Render SEO insights
-```
-
-## Deployment Workflow
-
-```mermaid
-flowchart TD
-    A["Push to GitHub"] --> B["GitHub webhook fires"]
-    B --> C["Jenkins pipeline: build & test image"]
-    C --> D["Push image / update manifests in Git"]
-    D --> E["Argo CD detects drift"]
-    E --> F["Argo CD syncs to Minikube cluster"]
-    F --> G["Updated pod running on GCP VM"]
+    User->>App: Submit YouTube URL + click Analyze
+    App->>Scraper: fetch_metadata(url)
+    Scraper->>YT: GET watch page
+    YT-->>Scraper: HTML (ytInitialPlayerResponse + OG tags)
+    Scraper-->>App: VideoMetadata
+    App->>Client: chat(system_prompt, user_prompt)
+    Client->>LLM: POST /chat/completions
+    LLM-->>Client: SEO insights (Markdown)
+    Client-->>App: insights
+    App-->>User: Render metadata + insights + download
 ```
 
 ## Prerequisites
 
-- Python 3.x and `pip`
-- An OpenAI API key with GPT-4 access
-- Docker
-- A Kubernetes cluster (Minikube)
-- `kubectl`
-- Jenkins (for CI)
-- Argo CD (for CD)
-- A GCP VM to host the cluster (for the deployed environment)
+- Python 3.10 or newer, with `pip` (or [uv](https://docs.astral.sh/uv/))
+- One LLM backend:
+  - Local: an Ollama-compatible runtime exposing an OpenAI-style API at `http://localhost:11434/v1`, or
+  - OpenRouter: an API key from [openrouter.ai/keys](https://openrouter.ai/keys)
+- Docker (optional, for containerized runs)
 
 ## Installation
-
-> _(expected)_ Run against the application source once it is present in this repository.
 
 ```bash
 # 1. Clone the repository
 git clone <repository-url>
-cd "TubeRank AI"
+cd TubeRank-AI
 
 # 2. Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
+python -m venv .venv
+.venv\Scripts\activate        # Windows (PowerShell)
+# source .venv/bin/activate   # macOS / Linux
 
-# 3. Install dependencies (requires a requirements file in the repo)
+# 3. Install dependencies
 pip install -r requirements.txt
+
+# 4. Create your environment file
+copy .env.example .env         # Windows
+# cp .env.example .env         # macOS / Linux
 ```
 
 ## Environment Variables
 
-The application requires an OpenAI API key to call GPT-4. Provide it through the environment:
+Configuration is read from the environment (loaded from `.env` via python-dotenv). Defaults come from the code.
 
-| Variable | Description |
-| --- | --- |
-| `OPENAI_API_KEY` | OpenAI API key used to authenticate GPT-4 requests. |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LLM_PROVIDER` | `local` | Backend to use: `local` or `openrouter`. |
+| `LLM_MODEL` | `llama3.1` | Model name passed to the chat completions request. |
+| `LLM_TEMPERATURE` | `0.4` | Sampling temperature. |
+| `LLM_TIMEOUT` | `120` | Request timeout in seconds. |
+| `LLM_API_KEY` | (empty) | API key. Required when `LLM_PROVIDER=openrouter`. |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | Base URL for the OpenRouter backend. |
+| `OPENROUTER_REFERER` | `https://github.com/tuberank-ai` | Sent as the `HTTP-Referer` header (OpenRouter only). |
+| `OPENROUTER_TITLE` | `TubeRank AI` | Sent as the `X-Title` header (OpenRouter only). |
+| `LOCAL_BASE_URL` | `http://localhost:11434/v1` | Base URL for the local backend. |
+| `LOCAL_API_KEY` | `not-needed` | API key for the local backend. Usually unused. |
 
-> Configure any additional variables to match the application source. Do not commit secrets to Git;
-> inject the key through a Kubernetes Secret in the cluster.
+Do not commit `.env` or any secrets. The file is already covered by `.gitignore`.
+
+### Example: local backend (Ollama)
+
+```bash
+LLM_PROVIDER=local
+LLM_MODEL=llama3.1
+LOCAL_BASE_URL=http://localhost:11434/v1
+```
+
+```bash
+# Start the runtime and pull the model
+ollama serve
+ollama pull llama3.1
+```
+
+### Example: OpenRouter backend
+
+```bash
+LLM_PROVIDER=openrouter
+LLM_MODEL=openai/gpt-4o-mini
+LLM_API_KEY=sk-or-...
+```
 
 ## Development
-
-> _(expected)_ Streamlit is the application framework shown in the stack.
 
 ```bash
 # Run the app locally
 streamlit run app.py
 ```
 
+The app serves on `http://localhost:8501` by default. The sidebar shows the resolved provider, model, and base URL, and surfaces a configuration error if the backend is misconfigured.
+
+## Docker
+
 ```bash
-# Build the container image
+# Build the image (uses pyproject.toml via uv)
 docker build -t tuberank-ai .
 
-# Run the container locally
-docker run -p 8501:8501 --env OPENAI_API_KEY=$OPENAI_API_KEY tuberank-ai
+# Run against a local Ollama backend
+# host.docker.internal lets the container reach a runtime on the host
+docker run --rm -p 8501:8501 \
+  -e LLM_PROVIDER=local \
+  -e LOCAL_BASE_URL=http://host.docker.internal:11434/v1 \
+  -e LLM_MODEL=llama3.1 \
+  tuberank-ai
+
+# Run against OpenRouter
+docker run --rm -p 8501:8501 \
+  -e LLM_PROVIDER=openrouter \
+  -e LLM_API_KEY=sk-or-... \
+  -e LLM_MODEL=openai/gpt-4o-mini \
+  tuberank-ai
 ```
 
-## Deployment
+The image exposes port `8501` and defines a health check against Streamlit's `/_stcore/health` endpoint.
 
-This project follows a GitOps model. The cluster state is declared in Git and reconciled by Argo CD.
+## Project Structure
 
-```bash
-# Start a local Minikube cluster (on the GCP VM)
-minikube start
-
-# Apply Kubernetes manifests (source of truth tracked by Argo CD)
-kubectl apply -f k8s/
-
-# Inspect running workloads
-kubectl get pods
-kubectl get svc
+```text
+.
+├── app.py               # Streamlit UI, prompt building, rendering
+├── llm_client.py        # Provider-agnostic LLM client (local / openrouter)
+├── youtube_scraper.py   # URL parsing + metadata scraping
+├── Dockerfile           # Container build (python:3.12-slim + uv)
+├── pyproject.toml       # Project metadata and dependencies
+├── requirements.txt     # Pinned runtime dependencies
+└── .env.example         # Environment variable template
 ```
-
-Delivery flow:
-
-1. Push code or manifest changes to GitHub.
-2. A GitHub webhook triggers the Jenkins build-and-test pipeline.
-3. Jenkins publishes the image and updates the manifests in Git.
-4. Argo CD detects the change and syncs the desired state into the Minikube cluster.
-5. The updated web application pod serves traffic from the GCP VM.
